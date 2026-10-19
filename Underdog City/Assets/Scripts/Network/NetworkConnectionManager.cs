@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using Photon.Pun;
 using UnityEngine.UI;
@@ -9,9 +9,12 @@ namespace UnderdogCity
 {
     public class NetworkConnectionManager : MonoBehaviourPunCallbacks
     {
-
         public Button BtnConnectMaster;
         public Button BtnConnectRoom;
+
+        [Header("Server Info")]
+        public string defaultServerName = "WISE-CITY-RP";
+        public string defaultOwnerName = "mr walid";
 
         protected bool TriesToConnectToMaster;
         protected bool TriesToConnectToRoom;
@@ -27,34 +30,31 @@ namespace UnderdogCity
         // Update is called once per frame
         void Update()
         {
-                if (BtnConnectMaster != null)
-                    BtnConnectMaster.gameObject.SetActive(!PhotonNetwork.IsConnected && !TriesToConnectToMaster);
-                if (BtnConnectRoom != null)
-                    BtnConnectRoom.gameObject.SetActive(PhotonNetwork.IsConnected && !TriesToConnectToMaster && !TriesToConnectToRoom);
-
+            if (BtnConnectMaster != null)
+                BtnConnectMaster.gameObject.SetActive(!PhotonNetwork.IsConnected && !TriesToConnectToMaster);
+            if (BtnConnectRoom != null)
+                BtnConnectRoom.gameObject.SetActive(PhotonNetwork.IsConnected && !TriesToConnectToMaster && !TriesToConnectToRoom);
         }
 
         public void OnClickConnectToMaster()
         {
             TriesToConnectToMaster = true;
 
-            //Settings (all optional and only for tutorial purpose)
-            PhotonNetwork.OfflineMode = false;           //true would "fake" an online connection
-            PhotonNetwork.NickName = "PlayerName";       //to set a player name
-            PhotonNetwork.AutomaticallySyncScene = true; //to call PhotonNetwork.LoadLevel()
-            PhotonNetwork.GameVersion = "v1";            //only people with the same game version can play together
+            // ضبط إعدادات الاتصال واسم المالك للسيرفر
+            PhotonNetwork.OfflineMode = false;
+            PhotonNetwork.NickName = defaultOwnerName; // تعيين الاسم الافتراضي mr walid
+            PhotonNetwork.AutomaticallySyncScene = true;
+            PhotonNetwork.GameVersion = "v1.0"; // إصدار اللعبة الخاصة بك
 
-            //PhotonNetwork.ConnectToMaster(ip,port,appid); //manual connection
             if(!PhotonNetwork.OfflineMode)
-                PhotonNetwork.ConnectUsingSettings();           //automatic connection based on the config file in Photon/PhotonUnityNetworking/Resources/PhotonServerSettings.asset
-
+                PhotonNetwork.ConnectUsingSettings();
         }
 
         public override void OnConnectedToMaster()
         {
             base.OnConnectedToMaster();
             TriesToConnectToMaster = false;
-            Debug.Log("Connected to Master!");
+            Debug.Log("Connected to Master Server - WISE-CITY-RP!");
         }
 
         public override void OnDisconnected(DisconnectCause cause)
@@ -71,24 +71,20 @@ namespace UnderdogCity
                 return;
 
             TriesToConnectToRoom = true;
-            //PhotonNetwork.CreateRoom("Peter's Game 1"); //Create a specific Room - Error: OnCreateRoomFailed
-            //PhotonNetwork.JoinRoom("Peter's Game 1");   //Join a specific Room   - Error: OnJoinRoomFailed  
-            PhotonNetwork.JoinRandomRoom();               //Join a random Room     - Error: OnJoinRandomRoomFailed  
+            PhotonNetwork.JoinRandomRoom();
         }
 
         public override void OnJoinRandomFailed(short returnCode, string message)
         {
             base.OnJoinRandomFailed(returnCode, message);
-            //no room available
-            //create a room (null as a name means "does not matter")
-            PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = 20 });
+            // إنشاء غرفة خاصة باسم المدينه WISE-CITY-RP وسعة 20 لاعب
+            PhotonNetwork.CreateRoom(defaultServerName + " - Main Room", new RoomOptions { MaxPlayers = 20 });
         }
 
         public override void OnCreateRoomFailed(short returnCode, string message)
         {
             base.OnCreateRoomFailed(returnCode, message);
             Debug.Log(message);
-            base.OnCreateRoomFailed(returnCode, message);
             TriesToConnectToRoom = false;
         }
 
@@ -97,10 +93,8 @@ namespace UnderdogCity
             base.OnJoinedRoom();
             TriesToConnectToRoom = false;
 
+            Debug.Log("Connected to: " + defaultServerName + " | Owner: " + defaultOwnerName + " | Players: " + PhotonNetwork.CurrentRoom.PlayerCount);
             
-            Debug.Log("Master: " + PhotonNetwork.IsMasterClient + " | Players In Room: " + PhotonNetwork.CurrentRoom.PlayerCount + " | RoomName: " + PhotonNetwork.CurrentRoom.Name + " Region: " + PhotonNetwork.CloudRegion);
-            //if(PhotonNetwork.IsMasterClient && SceneManager.GetActiveScene().name != "Network")
-            //    PhotonNetwork.LoadLevel("Network");
             if(PhotonNetwork.IsMasterClient && SceneManager.GetActiveScene().name != "Main")
                 PhotonNetwork.LoadLevel("Main");
         }
