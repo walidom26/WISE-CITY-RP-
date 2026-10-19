@@ -1,15 +1,13 @@
-﻿using DitzeGames.MobileJoystick;
+using DitzeGames.MobileJoystick;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace UnderdogCity
 {
-
     public class Controller : MonoBehaviour
     {
-
-        //Input
+        [Header("عناصر التحكم بالموبايل - وايز سيتي")]
         protected Joystick Joystick;
         protected Button JumpButton;
         protected Button ShootButton;
@@ -17,10 +15,10 @@ namespace UnderdogCity
         protected TouchField TouchField;
         protected Player Player;
 
-        //Parameters
+        [Header("إعدادات السرعة والتصوير")]
         protected const float RotationSpeed = 10;
 
-        //Camera Controll
+        // التحكم بالكاميرا
         public Vector3 CameraPivot;
         public float CameraDistance;
         protected float InputRotationX;
@@ -31,89 +29,127 @@ namespace UnderdogCity
 
         protected Vector3 CameraVelocity;
 
-        // Use this for initialization
+        // التهيئة عند بداية التشغيل
         void Start()
         {
             Joystick = FindObjectOfType<Joystick>();
             var buttons = new List<Button>(FindObjectsOfType<Button>());
-            JumpButton = buttons.Find(b => b.gameObject.name == "btnJump");
-            ShootButton = buttons.Find(b => b.gameObject.name == "btnShoot");
-            CarButton = buttons.Find(b => b.gameObject.name == "btnCar");
+            JumpButton = buttons.Find(b => b != null && b.gameObject.name == "btnJump");
+            ShootButton = buttons.Find(b => b != null && b.gameObject.name == "btnShoot");
+            CarButton = buttons.Find(b => b != null && b.gameObject.name == "btnCar");
             TouchField = FindObjectOfType<TouchField>();
             Player = GetComponent<Player>();
 
-            TouchField.UseFixedUpdate = true;
+            if (TouchField != null)
+            {
+                TouchField.UseFixedUpdate = true;
+            }
+
+            Debug.Log("تم تفعيل نظام تحكم الشخصية والكاميرا لسيرفر WISE-CITY-RP!");
         }
 
-        // Update is called once per frame
+        // تحديث الفيزياء والتحكم
         void FixedUpdate()
         {
+            if (Player == null) return;
 
-            //input
-            InputRotationX = InputRotationX + TouchField.TouchDist.x * RotationSpeed * Time.deltaTime % 360f;
-            InputRotationY = Mathf.Clamp(InputRotationY - TouchField.TouchDist.y * RotationSpeed * Time.deltaTime, -88f, 88f);
+            // حساب التدوير واللمس على الشاشة
+            if (TouchField != null)
+            {
+                InputRotationX = InputRotationX + TouchField.TouchDist.x * RotationSpeed * Time.deltaTime % 360f;
+                InputRotationY = Mathf.Clamp(InputRotationY - TouchField.TouchDist.y * RotationSpeed * Time.deltaTime, -88f, 88f);
+            }
 
-            //left and forward
+            // اتجاهات الشخصية للأمام واليسار
             var characterForward = Quaternion.AngleAxis(InputRotationX, Vector3.up) * Vector3.forward;
             var characterLeft = Quaternion.AngleAxis(InputRotationX + 90, Vector3.up) * Vector3.forward;
 
-            //look and run direction
-            var runDirection = characterForward * (Input.GetAxisRaw("Vertical") + Joystick.AxisNormalized.y) + characterLeft * (Input.GetAxisRaw("Horizontal") + Joystick.AxisNormalized.x);
+            // حساب اتجاه الجري والنظر
+            float inputV = Input.GetAxisRaw("Vertical") + (Joystick != null ? Joystick.AxisNormalized.y : 0f);
+            float inputH = Input.GetAxisRaw("Horizontal") + (Joystick != null ? Joystick.AxisNormalized.x : 0f);
+
+            var runDirection = characterForward * inputV + characterLeft * inputH;
             LookDirection = Quaternion.AngleAxis(InputRotationY, characterLeft) * characterForward;
 
             switch (Player.State)
             {
                 case Player.PlayerState.NORMAL:
 
-                    //set player values
+                    // تعيين قيم مدخلات اللاعب المشاة
                     Player.Input.RunX = runDirection.x;
                     Player.Input.RunZ = runDirection.z;
                     Player.Input.LookX = LookDirection.x;
                     Player.Input.LookZ = LookDirection.z;
-                    Player.Input.Jump = JumpButton.Pressed || Input.GetButton("Jump");
+                    Player.Input.Jump = (JumpButton != null && JumpButton.Pressed) || Input.GetButton("Jump");
 
-                    if (ShootButton.Pressed)
+                    // إطلاق النار / التصويب
+                    if (ShootButton != null && ShootButton.Pressed)
                     {
                         ShootButton.Pressed = false;
-                        var ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f));
-                        RaycastHit hitInfo;
-                        if (Physics.Raycast(ray, out hitInfo))
+                        if (Camera.main != null)
                         {
-                            var player = hitInfo.collider.GetComponent<Player>();
-                            if (player != null)
-                                player.OnHit(ray.direction);
+                            var ray = Camera.main.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f));
+                            RaycastHit hitInfo;
+                            if (Physics.Raycast(ray, out hitInfo))
+                            {
+                                var hitPlayer = hitInfo.collider.GetComponent<Player>();
+                                if (hitPlayer != null)
+                                    hitPlayer.OnHit(ray.direction);
+                            }
                         }
                     }
 
                     CharacterPivot = Quaternion.AngleAxis(InputRotationX, Vector3.up) * CameraPivot;
 
-                    //car button visibility
-                    CarButton.gameObject.SetActive(Player.NearestCar != null);
+                    // إظهار زر ركوب السيارة عند الاقتراب من سيارة
+                    if (CarButton != null)
+                    {
+                        CarButton.gameObject.SetActive(Player.NearestCar != null);
+                    }
 
                     break;
 
                 case Player.PlayerState.IN_CAR:
 
-                    //set car values
-                    Player.NearestCar.CarPhysics.Input.Forward = Input.GetAxisRaw("Vertical") + Joystick.InputVector.y;
-                    Player.NearestCar.CarPhysics.Input.Steer = Input.GetAxisRaw("Horizontal") + Joystick.InputVector.x;
+                    // تعيين إدخالات قيادة السيارة عند التواجد بداخلها
+                    if (Player.NearestCar != null && Player.NearestCar.CarPhysics != null)
+                    {
+                        float carV = Input.GetAxisRaw("Vertical") + (Joystick != null ? Joystick.InputVector.y : 0f);
+                        float carH = Input.GetAxisRaw("Horizontal") + (Joystick != null ? Joystick.InputVector.x : 0f);
 
-                    //car button visibility
-                    CarButton.gameObject.SetActive(true);
+                        Player.NearestCar.CarPhysics.Input.Forward = carV;
+                        Player.NearestCar.CarPhysics.Input.Steer = carH;
+                    }
 
-                    var target = Player.NearestCar.transform.position + (Player.NearestCar.transform.forward * -1.5f + Player.NearestCar.transform.up) * CameraDistance;
-                    Camera.main.transform.position = Vector3.SmoothDamp(Camera.main.transform.position, target, ref CameraVelocity, 0.3f);
-                    Camera.main.transform.LookAt(Player.NearestCar.transform.position + Player.NearestCar.transform.forward * 1.5f * CameraDistance, Vector3.up);
+                    // إظهار زر النزول من السيارة
+                    if (CarButton != null)
+                    {
+                        CarButton.gameObject.SetActive(true);
+                    }
+
+                    // تتبع كاميرا السيارة
+                    if (Player.NearestCar != null && Camera.main != null)
+                    {
+                        var target = Player.NearestCar.transform.position + (Player.NearestCar.transform.forward * -1.5f + Player.NearestCar.transform.up) * CameraDistance;
+                        Camera.main.transform.position = Vector3.SmoothDamp(Camera.main.transform.position, target, ref CameraVelocity, 0.3f);
+                        Camera.main.transform.LookAt(Player.NearestCar.transform.position + Player.NearestCar.transform.forward * 1.5f * CameraDistance, Vector3.up);
+                    }
                     break;
             }
 
-            if (CarButton.Pressed)
+            // عند الضغط على زر السيارة (ركوب / خروج)
+            if (CarButton != null && CarButton.Pressed)
+            {
+                CarButton.Pressed = false;
                 Player.EnterCar();
+            }
         }
 
         private void LateUpdate()
         {
-            //set camera values
+            if (Player == null || Camera.main == null) return;
+
+            // ضبط الكاميرا في حالة المشاة
             switch (Player.State)
             {
                 case Player.PlayerState.NORMAL:
@@ -125,6 +161,6 @@ namespace UnderdogCity
                 case Player.PlayerState.IN_CAR:
                     break;
             }
-            }
+        }
     }
 }
