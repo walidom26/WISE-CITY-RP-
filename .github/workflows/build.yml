@@ -17,6 +17,11 @@ jobs:
           tool-cache: false
           android: false
 
+      - name: Check Project Structure
+        run: |
+          ls -la
+          find . -maxdepth 2 -name "ProjectSettings"
+
       - name: Build Unity Project
         uses: game-ci/unity-builder@v4
         env:
