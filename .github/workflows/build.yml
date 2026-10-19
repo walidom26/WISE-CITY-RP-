@@ -8,32 +8,30 @@ on:
 
 jobs:
   build:
-    name: Build for Android
+    name: Build Android Package
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          lfs: true
 
-      - name: Cache Library
-        uses: actions/cache@v3
+      - name: Setup Java JDK
+        uses: actions/setup-java@v3
         with:
-          path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**') }}
-          restore-keys: |
-            Library-
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
       - name: Build Unity Project
         uses: game-ci/unity-builder@v2
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           targetPlatform: Android
+          unityVersion: auto
+          allowCustomImage: true
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: WISE-CITY-RP-Android
+          name: WISE-CITY-RP
           path: build/Android/*.apk
-          
