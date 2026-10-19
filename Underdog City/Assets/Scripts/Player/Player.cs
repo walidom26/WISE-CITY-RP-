@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using Photon.Pun;
 using UnityEngine;
@@ -7,6 +7,7 @@ namespace UnderdogCity
 {
     public class Player : MonoBehaviourPunCallbacks
     {
+        [Header("إدخالات حركة اللاعب - وايز سيتي")]
         [HideInInspector]
         public InputStr Input;
         public struct InputStr
@@ -18,9 +19,11 @@ namespace UnderdogCity
             public bool Jump;
         }
 
+        [Header("خصائص السرعة والقفز")]
         public const float Speed = 10f;
         public const float JumpForce = 5f;
 
+        [Header("حالة اللاعب")]
         [HideInInspector]
         public PlayerState State = PlayerState.NORMAL;
 
@@ -38,19 +41,25 @@ namespace UnderdogCity
         {
             Rigidbody = GetComponent<Rigidbody>();
             CharacterAnimator = GetComponentInChildren<Animator>();
-            CharacterRagdoll = transform.Find("CharacterRagdoll").gameObject;
+            
+            Transform ragdollTransform = transform.Find("CharacterRagdoll");
+            if (ragdollTransform != null)
+            {
+                CharacterRagdoll = ragdollTransform.gameObject;
+            }
+
             MainCollider = GetComponent<Collider>();
         }
 
         private void Start()
         {
             SetRagdoll(false);
+            Debug.Log("تم تفعيل خصائص اللاعب بنجاح لسيرفر WISE-CITY-RP!");
         }
 
         public void Pickup()
         {
-            //do something with it
-            Debug.Log("Player picked it up!");
+            Debug.Log("اللاعب قام بالتقاط العنصر!");
         }
 
         private void Update()
@@ -58,13 +67,14 @@ namespace UnderdogCity
             if (Rigidbody == null)
                 return;
 
-            CharacterAnimator.SetBool("Grounded", Grounded);
+            if (CharacterAnimator != null)
+            {
+                CharacterAnimator.SetBool("Grounded", Grounded);
 
-            var localVelocity = Quaternion.Inverse(transform.rotation) * (Rigidbody.velocity / Speed);
-            CharacterAnimator.SetFloat("RunX", localVelocity.x);
-            CharacterAnimator.SetFloat("RunZ", localVelocity.z);
-
-
+                var localVelocity = Quaternion.Inverse(transform.rotation) * (Rigidbody.velocity / Speed);
+                CharacterAnimator.SetFloat("RunX", localVelocity.x);
+                CharacterAnimator.SetFloat("RunZ", localVelocity.z);
+            }
         }
 
         void FixedUpdate()
@@ -81,46 +91,52 @@ namespace UnderdogCity
 
                     Rigidbody.velocity = new Vector3(inputRun.x * Speed, Rigidbody.velocity.y, inputRun.z * Speed);
 
-                    //rotation to go target
+                    // التدوير باتجاه الحركة والنظر
                     if (inputLook.magnitude > 0.01f)
                         LookRotation = Quaternion.AngleAxis(Vector3.SignedAngle(Vector3.forward, inputLook, Vector3.up), Vector3.up);
 
                     transform.rotation = LookRotation;
                     Grounded = Physics.OverlapSphere(transform.position, 0.3f, 1).Length > 1;
 
-                    if (Input.Jump)
+                    if (Input.Jump && Grounded)
                     {
-                        if (Grounded)
-                        {
-                            Rigidbody.velocity = new Vector3(Rigidbody.velocity.x, JumpForce, Rigidbody.velocity.z);
-                        }
+                        Rigidbody.velocity = new Vector3(Rigidbody.velocity.x, JumpForce, Rigidbody.velocity.z);
                     }
 
                     break;
+
                 case PlayerState.IN_CAR:
 
-                    //Fix to seat
-                    transform.position = NearestCar.AnimDrivePosition.transform.position;
-                    transform.rotation = NearestCar.AnimDrivePosition.transform.rotation;
-
+                    // التثبيت داخل مقعد السيارة
+                    if (NearestCar != null && NearestCar.AnimDrivePosition != null)
+                    {
+                        transform.position = NearestCar.AnimDrivePosition.transform.position;
+                        transform.rotation = NearestCar.AnimDrivePosition.transform.rotation;
+                    }
 
                     break;
             }
 
-            Rigidbody.useGravity = State == PlayerState.NORMAL;
-            MainCollider.enabled = State == PlayerState.NORMAL;
-            CharacterAnimator.SetBool("InCar", State == PlayerState.IN_CAR);
+            Rigidbody.useGravity = (State == PlayerState.NORMAL);
+            if (MainCollider != null)
+                MainCollider.enabled = (State == PlayerState.NORMAL);
+
+            if (CharacterAnimator != null)
+                CharacterAnimator.SetBool("InCar", State == PlayerState.IN_CAR);
         }
 
         private void LateUpdate()
         {
-            CharacterAnimator.transform.localPosition = Vector3.zero;
-            CharacterAnimator.transform.localRotation = Quaternion.identity;
+            if (CharacterAnimator != null)
+            {
+                CharacterAnimator.transform.localPosition = Vector3.zero;
+                CharacterAnimator.transform.localRotation = Quaternion.identity;
+            }
         }
 
         public void OnHit(Vector3 direction)
         {
-            //Remote Procedure call
+            // استدعاء الأوامر لجميع اللاعبين عبر الشبكة
             photonView.RPC("OnHitRpc", RpcTarget.All, direction);
         }
 
@@ -128,12 +144,14 @@ namespace UnderdogCity
         void OnHitRpc(Vector3 direction, PhotonMessageInfo info)
         {
             SetRagdoll(true);
-            if(GetComponent<Controller>() != null)
+            if (GetComponent<Controller>() != null)
                 Destroy(GetComponent<Controller>());
 
-            //Properties
-            PhotonNetwork.LocalPlayer.CustomProperties.Add("state", "dead");
-            //access by: PhotonNetwork.PlayerListOthers[0].CustomProperties["state"]
+            // حفظ حالة الوفاة عبر الشبكة
+            if (PhotonNetwork.LocalPlayer != null)
+            {
+                PhotonNetwork.LocalPlayer.CustomProperties["state"] = "dead";
+            }
         }
 
         public void EnterCar()
@@ -141,12 +159,16 @@ namespace UnderdogCity
             if (State == PlayerState.IN_CAR)
             {
                 State = PlayerState.TRANSITION;
-                NearestCar.CarPhysics.State = CarPhysics.CarState.FREE;
+                if (NearestCar != null && NearestCar.CarPhysics != null)
+                {
+                    NearestCar.CarPhysics.State = CarPhysics.CarState.FREE;
+                }
                 StartCoroutine(ExitCarAnimation());
                 return;
             }
 
-            if (NearestCar.CarPhysics.State == CarPhysics.CarState.FREE && NearestCar != null && State == PlayerState.NORMAL) { 
+            if (NearestCar != null && NearestCar.CarPhysics != null && NearestCar.CarPhysics.State == CarPhysics.CarState.FREE && State == PlayerState.NORMAL)
+            { 
                 NearestCar.CarPhysics.photonView.TransferOwnership(PhotonNetwork.LocalPlayer);
                 State = PlayerState.TRANSITION;
                 NearestCar.CarPhysics.State = CarPhysics.CarState.OCCUPIED;
@@ -154,69 +176,91 @@ namespace UnderdogCity
             }
         }
 
-
-
         public IEnumerator EnterCarAnimation()
         {
-            //get in
             var time = 0f;
-            CharacterAnimator.SetTrigger("EnterCar");
+            if (CharacterAnimator != null) CharacterAnimator.SetTrigger("EnterCar");
             const float animTime = 1.8f;
+
             while (time < animTime)
             {
-                NearestCar.Animator.SetBool("Open", 0.3f < time && time < 1f);
-                transform.position = Vector3.Lerp(NearestCar.AnimEnterPosition.transform.position, NearestCar.AnimDrivePosition.transform.position, time / 1.3f);
-                transform.rotation = Quaternion.Lerp(NearestCar.AnimEnterPosition.transform.rotation, NearestCar.AnimDrivePosition.transform.rotation, time / 1.3f);
+                if (NearestCar != null)
+                {
+                    if (NearestCar.Animator != null)
+                        NearestCar.Animator.SetBool("Open", 0.3f < time && time < 1f);
 
-                if (time < 0.2f && time + Time.fixedDeltaTime >= 0.2f)
-                    NearestCar.AudioSource.PlayOneShot(NearestCar.OpenClip);
-                if (time < 1.2f && time + Time.fixedDeltaTime >= 1.2f)
-                    NearestCar.AudioSource.PlayOneShot(NearestCar.CloseClip);
+                    if (NearestCar.AnimEnterPosition != null && NearestCar.AnimDrivePosition != null)
+                    {
+                        transform.position = Vector3.Lerp(NearestCar.AnimEnterPosition.transform.position, NearestCar.AnimDrivePosition.transform.position, time / 1.3f);
+                        transform.rotation = Quaternion.Lerp(NearestCar.AnimEnterPosition.transform.rotation, NearestCar.AnimDrivePosition.transform.rotation, time / 1.3f);
+                    }
+
+                    if (NearestCar.AudioSource != null)
+                    {
+                        if (time < 0.2f && time + Time.fixedDeltaTime >= 0.2f && NearestCar.OpenClip != null)
+                            NearestCar.AudioSource.PlayOneShot(NearestCar.OpenClip);
+                        if (time < 1.2f && time + Time.fixedDeltaTime >= 1.2f && NearestCar.CloseClip != null)
+                            NearestCar.AudioSource.PlayOneShot(NearestCar.CloseClip);
+                    }
+                }
 
                 time += Time.fixedDeltaTime;
                 yield return new WaitForFixedUpdate();
             }
 
-            NearestCar.AudioSource.Play();
+            if (NearestCar != null && NearestCar.AudioSource != null)
+                NearestCar.AudioSource.Play();
 
             State = PlayerState.IN_CAR;
         }
 
         public IEnumerator ExitCarAnimation()
         {
-            NearestCar.AudioSource.Stop();
+            if (NearestCar != null && NearestCar.AudioSource != null)
+                NearestCar.AudioSource.Stop();
 
-            //get out
             var time = 0f;
-            CharacterAnimator.SetBool("InCar", false);
+            if (CharacterAnimator != null) CharacterAnimator.SetBool("InCar", false);
             const float animTime = 1.8f;
+
             while (time < animTime)
             {
-                NearestCar.Animator.SetBool("Open", 0.0f < time && time < 1f);
-                transform.position = Vector3.Lerp(NearestCar.AnimDrivePosition.transform.position, NearestCar.AnimEnterPosition.transform.position, time / 1.3f);
-                transform.rotation = Quaternion.Lerp(NearestCar.AnimDrivePosition.transform.rotation, NearestCar.AnimEnterPosition.transform.rotation, time / 1.3f);
+                if (NearestCar != null)
+                {
+                    if (NearestCar.Animator != null)
+                        NearestCar.Animator.SetBool("Open", 0.0f < time && time < 1f);
 
-                if (time < 0.2f && time + Time.fixedDeltaTime >= 0.2f)
-                    NearestCar.AudioSource.PlayOneShot(NearestCar.OpenClip);
-                if (time < 1.2f && time + Time.fixedDeltaTime >= 1.2f)
-                    NearestCar.AudioSource.PlayOneShot(NearestCar.CloseClip);
+                    if (NearestCar.AnimDrivePosition != null && NearestCar.AnimEnterPosition != null)
+                    {
+                        transform.position = Vector3.Lerp(NearestCar.AnimDrivePosition.transform.position, NearestCar.AnimEnterPosition.transform.position, time / 1.3f);
+                        transform.rotation = Quaternion.Lerp(NearestCar.AnimDrivePosition.transform.rotation, NearestCar.AnimEnterPosition.transform.rotation, time / 1.3f);
+                    }
+
+                    if (NearestCar.AudioSource != null)
+                    {
+                        if (time < 0.2f && time + Time.fixedDeltaTime >= 0.2f && NearestCar.OpenClip != null)
+                            NearestCar.AudioSource.PlayOneShot(NearestCar.OpenClip);
+                        if (time < 1.2f && time + Time.fixedDeltaTime >= 1.2f && NearestCar.CloseClip != null)
+                            NearestCar.AudioSource.PlayOneShot(NearestCar.CloseClip);
+                    }
+                }
 
                 time += Time.fixedDeltaTime;
                 yield return new WaitForFixedUpdate();
             }
-
 
             State = PlayerState.NORMAL;
         }
 
         public void SetRagdoll(bool on)
         {
-            CharacterAnimator.gameObject.SetActive(!on);
-            CharacterRagdoll.gameObject.SetActive(on);
+            if (CharacterAnimator != null) CharacterAnimator.gameObject.SetActive(!on);
+            if (CharacterRagdoll != null) CharacterRagdoll.gameObject.SetActive(on);
+
             if (on)
             {
-                Destroy(MainCollider);
-                Destroy(Rigidbody);
+                if (MainCollider != null) Destroy(MainCollider);
+                if (Rigidbody != null) Destroy(Rigidbody);
             }
         }
 
