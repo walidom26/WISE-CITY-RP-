@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using Photon.Pun;
 using UnityEngine.SceneManagement;
@@ -14,6 +14,9 @@ namespace UnderdogCity
         [HideInInspector]
         public Player LocalPlayer;
 
+        [Header("Server Info")]
+        public string serverOwner = "mr walid"; // تعيين المالك الأساسي للسيرفر
+
         private void Awake()
         {
             if (!PhotonNetwork.IsConnected)
@@ -27,6 +30,10 @@ namespace UnderdogCity
         void Start()
         {
             LocalPlayer = PhotonNetwork.Instantiate("Player", Vector3.zero, Quaternion.identity).GetComponent<Player>();
+            
+            // تسجيل صلاحيات المالك الأساسي في سجل السيرفر
+            Debug.Log("Server Initialized. Owner & Highest Admin: " + serverOwner);
+
             if (PhotonNetwork.IsMasterClient)
                 PhotonNetwork.InstantiateSceneObject("Car", new Vector3(0, 1, 20), Quaternion.identity);
         }
