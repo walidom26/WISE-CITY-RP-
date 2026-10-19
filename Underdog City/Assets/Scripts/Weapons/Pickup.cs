@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,8 +7,8 @@ namespace UnderdogCity
 {
     public class Pickup : MonoBehaviour
     {
-
-        public float TimeToRespawn;
+        [Header("إعدادات إعادة ظهور العنصر/السلاح - وايز سيتي")]
+        public float TimeToRespawn; // الوقت اللازم لظهور العنصر مجدداً
         protected float TimeLeft;
         protected bool Pickable;
 
@@ -16,8 +16,10 @@ namespace UnderdogCity
         void Start()
         {
             Deactivate();
+            Debug.Log("تم تفعيل نظام التقاط الأسلحة والعناصر بنجاح!");
         }
 
+        // إلغاء تفعيل العنصر (إخفاؤه بعد التقاطه)
         private void Deactivate()
         {
             Pickable = false;
@@ -26,6 +28,7 @@ namespace UnderdogCity
                 transform.GetChild(i).gameObject.SetActive(false);
         }
 
+        // تفعيل العنصر (إظهاره مجدداً في الماب)
         private void Activate()
         {
             Pickable = true;
@@ -36,16 +39,19 @@ namespace UnderdogCity
         // Update is called once per frame
         void Update()
         {
-            if(TimeLeft > 0)
+            // عد تنازلي لوقت إعادة ظهور العنصر
+            if (TimeLeft > 0)
                 TimeLeft -= Time.deltaTime;
+            
             if (!Pickable && TimeLeft <= 0)
                 Activate();
         }
 
+        // عند دخول اللاعب منطقة التقاط العنصر
         void OnTriggerEnter(Collider other)
         {
             var player = other.GetComponent<Player>();
-            if (player != null)
+            if (player != null && Pickable)
             {
                 Deactivate();
                 player.Pickup();
