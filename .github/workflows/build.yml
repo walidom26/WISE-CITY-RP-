@@ -17,11 +17,12 @@ jobs:
           tool-cache: false
           android: false
 
-      - name: Activate Unity
-        uses: game-ci/unity-request-activation-file@v2
-
       - name: Build Unity Project
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-builder@v2
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
           targetPlatform: Android
           projectPath: Underdog City
