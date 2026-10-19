@@ -9,25 +9,34 @@ namespace UnderdogCity
 {
     public class NetworkConnectionManager : MonoBehaviourPunCallbacks
     {
+        [Header("أزرار الواجهة المعربة")]
         public Button BtnConnectMaster;
         public Button BtnConnectRoom;
 
-        [Header("Server Info")]
-        public string defaultServerName = "WISE-CITY-RP";
+        [Header("نصوص الأزرار والرسائل")]
+        public Text txtMasterBtn; // نص زر الاتصال بالسيرفر
+        public Text txtRoomBtn;   // نص زر دخول المدينة
+        public Text txtStatus;    // نص حالة الاتصال
+
+        [Header("إعدادات السيرفر والمالك")]
+        public string defaultServerName = "وايز سيتي - WISE CITY RP";
         public string defaultOwnerName = "mr walid";
 
         protected bool TriesToConnectToMaster;
         protected bool TriesToConnectToRoom;
 
-        // Use this for initialization
         void Start()
         {
             DontDestroyOnLoad(this);
             TriesToConnectToMaster = false;
             TriesToConnectToRoom   = false;
+
+            // تحديث نصوص الأزرار باللغة العربية
+            if (txtMasterBtn != null) txtMasterBtn.text = "الاتصال بالخادم الرئيسي";
+            if (txtRoomBtn != null) txtRoomBtn.text = "دخول مدينة وايز سيتي";
+            if (txtStatus != null) txtStatus.text = "مرحباً بك في مدينة وايز سيتي RP";
         }
 
-        // Update is called once per frame
         void Update()
         {
             if (BtnConnectMaster != null)
@@ -36,15 +45,17 @@ namespace UnderdogCity
                 BtnConnectRoom.gameObject.SetActive(PhotonNetwork.IsConnected && !TriesToConnectToMaster && !TriesToConnectToRoom);
         }
 
+        // الاتصال بالخادم الرئيسي
         public void OnClickConnectToMaster()
         {
             TriesToConnectToMaster = true;
 
-            // ضبط إعدادات الاتصال واسم المالك للسيرفر
+            if (txtStatus != null) txtStatus.text = "جاري الاتصال بالخادم الرئيسي...";
+
             PhotonNetwork.OfflineMode = false;
-            PhotonNetwork.NickName = defaultOwnerName; // تعيين الاسم الافتراضي mr walid
+            PhotonNetwork.NickName = defaultOwnerName; // اسم المالك
             PhotonNetwork.AutomaticallySyncScene = true;
-            PhotonNetwork.GameVersion = "v1.0"; // إصدار اللعبة الخاصة بك
+            PhotonNetwork.GameVersion = "v1.0";
 
             if(!PhotonNetwork.OfflineMode)
                 PhotonNetwork.ConnectUsingSettings();
@@ -54,7 +65,8 @@ namespace UnderdogCity
         {
             base.OnConnectedToMaster();
             TriesToConnectToMaster = false;
-            Debug.Log("Connected to Master Server - WISE-CITY-RP!");
+            Debug.Log("تم الاتصال بنجاح بخادم وايز سيتي!");
+            if (txtStatus != null) txtStatus.text = "تم الاتصال بنجاح! جاهز لدخول المدينة.";
         }
 
         public override void OnDisconnected(DisconnectCause cause)
@@ -62,29 +74,32 @@ namespace UnderdogCity
             base.OnDisconnected(cause);
             TriesToConnectToMaster = false;
             TriesToConnectToRoom   = false;
-            Debug.Log(cause);
+            if (txtStatus != null) txtStatus.text = "انقطع الاتصال بالخادم. أعد المحاولة.";
         }
 
+        // دخول غرف اللعب
         public void OnClickConnectToRoom()
         {
             if (!PhotonNetwork.IsConnected)
                 return;
 
             TriesToConnectToRoom = true;
+            if (txtStatus != null) txtStatus.text = "جاري البحث عن سيرفر متاح...";
             PhotonNetwork.JoinRandomRoom();
         }
 
         public override void OnJoinRandomFailed(short returnCode, string message)
         {
             base.OnJoinRandomFailed(returnCode, message);
-            // إنشاء غرفة خاصة باسم المدينه WISE-CITY-RP وسعة 20 لاعب
-            PhotonNetwork.CreateRoom(defaultServerName + " - Main Room", new RoomOptions { MaxPlayers = 20 });
+            if (txtStatus != null) txtStatus.text = "جاري إنشاء سيرفر جديد باسم المدينة...";
+            
+            // إنشاء الغرفة بروابط وسعة 20 لاعب
+            PhotonNetwork.CreateRoom(defaultServerName + " - السيرفر الرئيسي", new RoomOptions { MaxPlayers = 20 });
         }
 
         public override void OnCreateRoomFailed(short returnCode, string message)
-        {
-            base.OnCreateRoomFailed(returnCode, message);
-            Debug.Log(message);
+        { base.OnCreateRoomFailed(returnCode, message);
+            if (txtStatus != null) txtStatus.text = "فشل إنشاء السيرفر: " + message;
             TriesToConnectToRoom = false;
         }
 
@@ -93,8 +108,8 @@ namespace UnderdogCity
             base.OnJoinedRoom();
             TriesToConnectToRoom = false;
 
-            Debug.Log("Connected to: " + defaultServerName + " | Owner: " + defaultOwnerName + " | Players: " + PhotonNetwork.CurrentRoom.PlayerCount);
-            
+            if (txtStatus != null) txtStatus.text = "تم الانضمام بنجاح! جاري تحميل المدينة...";
+
             if(PhotonNetwork.IsMasterClient && SceneManager.GetActiveScene().name != "Main")
                 PhotonNetwork.LoadLevel("Main");
         }
