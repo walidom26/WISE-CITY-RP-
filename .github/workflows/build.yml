@@ -1,19 +1,19 @@
-name: Acquire Unity License
+name: Generate Unity Activation File
 
 on:
   workflow_dispatch:
 
 jobs:
-  get-license:
-    runs-on: ubuntu-latest
+  generate-alf:
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Request License
-        uses: game-ci/unity-request-activation-file@v2
+      - name: Request Manual Activation File
+        uses: game-ci/unity-request-activation-file@v2.1.0
 
-      - name: Upload License Request
+      - name: Upload ALF Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Unity-Activation-Request
