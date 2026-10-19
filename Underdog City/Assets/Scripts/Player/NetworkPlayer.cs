@@ -1,12 +1,10 @@
-﻿using Photon.Pun;
+using Photon.Pun;
 using UnityEngine;
 
 namespace UnderdogCity
 {
-
     public class NetworkPlayer : MonoBehaviourPun, IPunObservable
     {
-
         protected Player Player;
         protected Vector3 RemotePlayerPosition;
         protected float RemoteLookX;
@@ -18,7 +16,7 @@ namespace UnderdogCity
         {
             Player = GetComponent<Player>();
 
-            //destroy the controller if the player is not controlled by me
+            // حذف سكريبت التحكم إذا لم يكن اللاعب هو الشخصية الخاصة بك (التحكم باللاعبين الآخرين عبر الشبكة)
             if (!photonView.IsMine && GetComponent<Controller>() != null)
                 Destroy(GetComponent<Controller>());
         }
@@ -30,42 +28,43 @@ namespace UnderdogCity
 
             var LagDistance = RemotePlayerPosition - transform.position;
 
-            //High distance => sync is to much off => send to position
+            // إذا كانت المسافة كبيرة جداً، قم بنقل اللاعب فوراً للموقع الجديد لتجنب التأخير
             if (LagDistance.magnitude > 5f)
             {
                 transform.position = RemotePlayerPosition;
                 LagDistance = Vector3.zero;
             }
 
-            //ignore the y distance
+            // تجاهل المسافة في المحور الرأسي (Y)
             LagDistance.y = 0;
 
             if (LagDistance.magnitude < 0.11f)
             {
-                //Player is nearly at the point
+                // اللاعب وصل تقريباً إلى الموقع المطلوب
                 Player.Input.RunX = 0;
                 Player.Input.RunZ = 0;
             }
             else
             {
-                //Player has to go to the point
+                // اللاعب بحاجة للتحرك نحو الموقع
                 Player.Input.RunX = LagDistance.normalized.x;
                 Player.Input.RunZ = LagDistance.normalized.z;
             }
 
-            //jump if the remote player is higher than the player on the current client
+            // القفز إذا كان اللاعب البعيد أعلى من اللاعب الحالي
             Player.Input.Jump = RemotePlayerPosition.y - transform.position.y > 0.2f;
 
-            //Look Smooth
+            // سلاسة التوجيه والنظر
             Player.Input.LookX = Mathf.SmoothDamp(Player.Input.LookX, RemoteLookX, ref LookXVel, 0.2f);
             Player.Input.LookZ = Mathf.SmoothDamp(Player.Input.LookZ, RemoteLookZ, ref LookZVel, 0.2f);
-
         }
 
+        // مزامنة البيانات أونلاين عبر شبكة Photon
         public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
         {
             if (stream.IsWriting)
             {
+                // إرسال بيانات موقعك واتجاهك وحالتك للآخرين
                 stream.SendNext(transform.position);
                 stream.SendNext(Player.Input.LookX);
                 stream.SendNext(Player.Input.LookZ);
@@ -73,18 +72,19 @@ namespace UnderdogCity
             }
             else
             {
+                // استقبال بيانات اللاعبين الآخرين
                 RemotePlayerPosition = (Vector3)stream.ReceiveNext();
                 RemoteLookX = (float)stream.ReceiveNext();
                 RemoteLookZ = (float)stream.ReceiveNext();
                 var state = (Player.PlayerState)stream.ReceiveNext();
 
-                //Enter
+                // دخول السيارة (Transition)
                 if (state == Player.PlayerState.TRANSITION && Player.State == Player.PlayerState.NORMAL)
                     Player.StartCoroutine(Player.EnterCarAnimation());
-                //Exit
+                
+                // الخروج من السيارة (Transition)
                 if (state == Player.PlayerState.TRANSITION && Player.State == Player.PlayerState.IN_CAR)
                     Player.StartCoroutine(Player.ExitCarAnimation());
-
 
                 Player.State = state;
             }
