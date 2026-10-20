@@ -6,13 +6,15 @@ on:
 jobs:
   get-alf:
     name: Generate ALF File
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Request Activation File
-        uses: game-ci/unity-request-activation-file@v3
+        uses: game-ci/unity-request-activation-file@v2.1
+        with:
+          unityVersion: 2019.2.11f1
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
