@@ -1,11 +1,11 @@
-name: Build Android Game
+name: Acquire Unity License
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build for Android
+  get-license:
+    name: Generate Activation File
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -17,19 +17,11 @@ jobs:
           tool-cache: false
           android: false
 
-      - name: Build Unity Project
-        uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        with:
-          targetPlatform: Android
-          projectPath: Underdog City
-          allowUnfree: true
+      - name: Request Activation File
+        uses: game-ci/unity-request-activation-file@v2
 
-      - name: Upload APK Result
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: my-game-apk
-          path: build/Android/*.apk
+          name: Unity-Activation-File
+          path: manual_activation_file.alf
