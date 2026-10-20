@@ -18,14 +18,15 @@ jobs:
           android: false
 
       - name: Build Unity Project
-        uses: game-ci/unity-builder@v2
+        uses: game-ci/unity-builder@v4
         env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
           targetPlatform: Android
           projectPath: Underdog City
+          allowUnfree: true
 
       - name: Upload APK Result
         uses: actions/upload-artifact@v4
